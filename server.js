@@ -1,23 +1,59 @@
 const debug = require('debug')('app:server');
 const debugError = require('debug')('app:error');
 const express = require('express');
-const { nanoid } = require('nanoid');
+const {
+  nanoid
+} = require('nanoid');
 const config = require('config');
 const dbModule = require('./database');
+
+//define custom object id validator
+const Joi = require('joi');
+const { ObjectId } = require('mongodb');
+
+Joi.objectId = () => {
+  return Joi.any()
+    .custom((value, helpers) => {
+      try {
+        if (!value) {
+          return helpers.error('any.objectId')
+        } else if (typeof value !== 'string' && typeof value !== 'object') {
+          return helpers.error('any.objectId')
+        } else {
+          return new ObjectId(value);
+        }
+
+      } catch (err) {
+        return helpers.error('any.objectId')
+      }
+
+    })
+    .rule({
+      message: {
+        'any.objectId': '{#label} was not a valid ObjectId'
+      }
+    })
+};
 //construct express app
 const app = express();
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({
+  extended: false
+}));
 app.use(express.json());
 
 //define routes
 app.use(require('./routes/api/pet'));
 //handle errors
-app.use((req,res,next) =>{
-  res.status(404).json({error:'Page not found!'});
+app.use((req, res, next) => {
+  res.status(404).json({
+    error: 'Page not found!'
+  });
 });
 
-app.use((err,req,res,next) => {
-  res.status(500).json({error:err.message});
+app.use((err, req, res, next) => {
+  res.status(500).json({
+    error: err.message
+  });
 });
 
 //start listening for requests
