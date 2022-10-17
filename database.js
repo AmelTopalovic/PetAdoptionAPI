@@ -1,5 +1,8 @@
 const debug = require('debug')('app:database');
-const { MongoClient, ObjectId } = require('mongodb');
+const {
+  MongoClient,
+  ObjectId
+} = require('mongodb');
 const config = require('config');
 
 const newId = (str) => new ObjectId(str);
@@ -38,7 +41,11 @@ async function findAllPets() {
 
 async function findPetById(petId) {
   const db = await connect();
-  const pet = await db.collection('pets').findOne({ _id: { $eq: petId } });
+  const pet = await db.collection('pets').findOne({
+    _id: {
+      $eq: petId
+    }
+  });
   return pet;
 }
 
@@ -52,22 +59,71 @@ async function insertOnePet(pet) {
 
 async function updateOnePet(petId, update) {
   const db = await connect();
-  await db.collection('pets').updateOne(
-    { _id: { $eq: petId } },
-    {
-      $set: {
-        ...update,
-        lastUpdated: new Date(),
-      },
+  await db.collection('pets').updateOne({
+    _id: {
+      $eq: petId
     }
-  );
+  }, {
+    $set: {
+      ...update,
+      lastUpdated: new Date(),
+    },
+  });
 }
 
 async function deleteOnePet(petId) {
-    const db = await connect();
-    await db.collection('pets').deleteOne({ _id: { $eq: petId } });
+  const db = await connect();
+  await db.collection('pets').deleteOne({
+    _id: {
+      $eq: petId
+    }
+  });
+}
+
+async function insertUser(user) {
+  const db = await connect();
+  return await db.collection('users').insertOne(user);
+};
+
+async function updateUser(userId, update) {
+  const db = await connect();
+  return await db.collection('users').updateOne(
+    {_id: {$eq: userId}},
+    {$set: {...update}}
+  );
+}
+
+async function getUserById(userId) {
+  const db = await connect();
+  return await db.collection('users').findOne({
+    _id: {
+      $eq: userId
+    }
+  });
+}
+
+async function getUserByEmail(email) {
+  const db = await connect();
+  return await db.collection('users').findOne({
+    email: {
+      $eq: email
+    }
+  });
 }
 
 ping();
 
-module.exports = { newId, connect, ping, findAllPets, findPetById, insertOnePet, updateOnePet, deleteOnePet };
+module.exports = {
+  newId,
+  connect,
+  ping,
+  findAllPets,
+  findPetById,
+  insertOnePet,
+  updateOnePet,
+  deleteOnePet,
+  insertUser,
+  updateUser,
+  getUserById,
+  getUserByEmail
+};
