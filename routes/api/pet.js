@@ -3,7 +3,16 @@ const debugError = require('debug')('app:error');
 const express = require('express');
 const { nanoid } = require('nanoid');
 const dbModule = require('../../database');
-const { newId, connect } = require('../../database');
+const {
+  newId,
+  connect,
+  findAllPets,
+  findPetById,
+  insertOnePet,
+  updateOnePet,
+  deleteOnePet,
+  saveEdit,
+} = require('../../database');
 const { MongoClient, ObjectId } = require('mongodb');
 const Joi = require('joi');
 const validId = require('../../middleware/validId');
@@ -40,7 +49,7 @@ const updatePetSchema = Joi.object({
 const router = express.Router();
 
 //define routes
-router.get('/api/pet/list', async (req, res, next) => {
+router.get('/list', async (req, res, next) => {
   try {
 
     //get inputs
@@ -82,7 +91,7 @@ router.get('/api/pet/list', async (req, res, next) => {
       case 'oldest': sort = {createdDate: 1}; break;
     }
     //project stage
-    const project = {species: 1, name: 1, age: 1, gender: 1 };
+    const project = {species: 1, name: 1, age: 1, gender: 1, createdBy: 1, createdOn: 1, lastUpdatedBy: 1, lastUpdated: 1};
 
     //skip and limit stages
     pageNumber = parseInt(pageNumber) || 1;
@@ -108,7 +117,7 @@ router.get('/api/pet/list', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-router.get('/api/pet/:petId', validId('petId'), async (req, res, next) => {
+router.get('/:petId', validId('petId'), async (req, res, next) => {
   try {
     petId = newId(req.params.petId);
   } catch (err) {
@@ -119,7 +128,7 @@ router.get('/api/pet/:petId', validId('petId'), async (req, res, next) => {
 
   try {
     const petId = req.petId;
-    const pet = await dbModule.findPetById(petId);
+    const pet = await findPetById(petId);
     if (!pet) {
       res.status(404).json({
         error: ` ${petId} Pet not found`,
@@ -132,61 +141,99 @@ router.get('/api/pet/:petId', validId('petId'), async (req, res, next) => {
   }
 });
 //create
-router.put('/api/pet/new', validBody(newPetSchema), async (req, res, next) => {
+router.put('/new', validBody(newPetSchema), async (req, res, next) => {
   try {
-    const pet = req.body;
-    pet._id = newId();
-    debug(`insert pet`, pet);
+    const petId = newId();
+      const pet = {
+        ...req.body,
+        _id: petId,
+        createdOn: new Date(),
+      };
+      debug(`insert pet ${petId}:`, pet);
 
-    await dbModule.insertOnePet(pet);
-    res.json({
-      message: 'Pet created',
-    });
-  } catch (err) {
-    next(err);
+      // insert pet document
+      const insertResult = await insertOnePet(pet);
+      debug('insert result:', insertResult);
+
+      // save edit for audit trail
+      const edit = {
+        timestamp: new Date(),
+        op: 'insert',
+        col: 'pets',
+        target: { petId },
+        update: pet,
+        auth: req.auth,
+      };
+      await saveEdit(edit);
+      debug('edit saved');
+
+      // send response
+      res.json({ message: 'Pet inserted.', petId });
+    } catch (err) {
+      next(err);
   }
 });
 //update
-router.put('/api/pet/:petId', validId('petId'), validBody(updatePetSchema), async (req, res, next) => {
+router.put('/:petId', validId('petId'), validBody(updatePetSchema), async (req, res, next) => {
   try {
     const petId = req.petId;
-    const update = req.body;
+      const update = req.body;
 
-    const pet = await dbModule.findPetById(petId);
-    if (!pet) {
-      res.status(404).json({
-        error: ` ${petId} Pet not found`,
-      });
-    } else {
-      await dbModule.updateOnePet(petId, update);
-      res.json({
-        message: ` ${petId} Pet updated`,
-      });
-    }
-  } catch (err) {
-    next(err);
+   
+      debug(`update pet ${petId}:`, update);
+
+      // update pet document
+      const updateResult = await updateOnePet(petId, update);
+      debug('update result:', updateResult);
+
+      // save edit for audit trail
+      const edit = {
+        timestamp: new Date(),
+        op: 'update',
+        col: 'pets',
+        target: { petId },
+        update,
+        auth: req.auth,
+      };
+      await saveEdit(edit);
+      debug('edit saved');
+
+      // send response
+      if (updateResult.matchedCount > 0) {
+        res.json({ message: 'Pet Updated!', petId });
+      } else {
+        res.status(404).json({ error: 'Pet not found!' });
+      }
+    } catch (err) {
+      next(err);
   }
 });
 
 //delete
-router.delete('/api/pet/:petId', validId('petId'), async (req, res, next) => {
+router.delete('/:petId', validId('petId'), async (req, res, next) => {
   try {
     const petId = req.petId;
-    debug(`Deleted pet: ${petId}`);
+      debug(`delete pet ${petId}`);
 
-    const pet = await dbModule.findPetById(petId);
-    if (!pet) {
-      res.status(404).json({
-        error: ` ${petId} Pet not found`,
-      });
-    } else {
-      await dbModule.deleteOnePet(petId);
-      res.json({
-        message: ` ${petId} Pet deleted`,
-      });
-    }
-  } catch (err) {
-    next(err);
+      // delete pet document
+      const deleteResult = await deleteOnePet(petId);
+      debug('delete result:', deleteResult);
+
+      // save edit for audit trail
+      const edit = {
+        timestamp: new Date(),
+        op: 'delete',
+        col: 'pets',
+        target: { petId },
+        auth: req.auth,
+      };
+      await saveEdit(edit);
+      debug('edit saved');
+
+      // send response
+      res.json({ message: 'Pet Deleted!', petId });
+    } catch (err) {
+      next(err);
   }
   });
 });

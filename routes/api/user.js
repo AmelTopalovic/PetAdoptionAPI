@@ -9,7 +9,8 @@ const {
     insertUser,
     updateUser,
     getUserById,
-    getUserByEmail
+    getUserByEmail,
+    saveEdit,
 } = require('../../database');
 const config = require('config');
 const jwt = require('jsonwebtoken');
@@ -120,8 +121,34 @@ router.put('/:me', validBody(updateUserSchema), async (req, res, next) => {
             const saltRounds = parseInt(config.get('auth.saltRounds'));
             update.password = await bcrypt.hash(update.password, saltRounds);
         }
+
+        if(Object.keys(update).length > 0) {
+            update.lastUpdatedOn = new Date();
+            update.lastUpdatedBy = {
+                _id: req.auth._id,
+                email: req.auth.email,
+                fullName: req.auth.fullName,
+                role: req.auth.role,
+            }
+        } {
+
+        }
+
+
+
         const dbResult = await updateUser(userId, update);
         debug('update result:', dbResult);
+
+        const edit = {
+            timestamp: new Date(),
+            op: 'update',
+            col: 'users',
+            target:{userId},
+            update,
+            auth: req.auth,
+        };
+        await saveEdit(edit)
+        debug('edit saved');
         res.json({message: 'User Updated', userId: userId});
 
     }

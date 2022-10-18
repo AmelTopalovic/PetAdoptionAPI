@@ -111,6 +111,11 @@ async function getUserByEmail(email) {
   });
 }
 
+async function saveEdit(edit){
+  const db = await connect();
+  return await db.collection('edits').insertOne(edit);
+}
+
 ping();
 
 module.exports = {
@@ -125,5 +130,6 @@ module.exports = {
   insertUser,
   updateUser,
   getUserById,
-  getUserByEmail
+  getUserByEmail,
+  saveEdit,
 };
