@@ -25,7 +25,7 @@ const auth = () =>{
             try {
                 req.auth = jwt.verify(authCookie, authSecret);
                 const cookieOptions = {httpOnly: true, maxAge: parseInt(config.get('auth.cookieMaxAge'))};
-                res.cookie('authToken', authToken, cookieOptions);
+                res.cookie('authToken', authCookie, cookieOptions);
             } catch(err) {
                 debug('invalid auth cookie');
             }

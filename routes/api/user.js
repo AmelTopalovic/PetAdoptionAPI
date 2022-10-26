@@ -26,6 +26,7 @@ const loginSchema = Joi.object({
     password: Joi.string().trim().min(8).required(),
 });
 const updateUserSchema = Joi.object({
+    email: Joi.string().trim().lowercase().email(), 
     password: Joi.string().trim().min(8),
     fullName: Joi.string().trim().min(1)
 });
@@ -157,7 +158,7 @@ router.put('/:me', validBody(updateUserSchema), async (req, res, next) => {
     }
 });
 
-router.post('/:userId',validId('userId'), validBody(updateUserSchema), async (req, res, next) => {
+router.put('/:userId',validId('userId'), validBody(updateUserSchema), async (req, res, next) => {
     //admin update
     try{
         const userId = req.userId;
